@@ -55,10 +55,7 @@ def generate_dataset(n_samples=2000, seed=42):
         "Price":      price.astype(int),
     })
     return df
-
-# ─────────────────────────────────────────────
 # 2. TRAIN
-# ─────────────────────────────────────────────
 def train():
     print("🔧 Generating dataset …")
     df = generate_dataset()
