@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🏠 House Price Predictor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161a22;
+    --surface2: #1e2330;
+    --accent: #f0c040;
+    --accent2: #ff6b35;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --green: #34d399;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: -1;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(240,192,64,.08) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 80%, rgba(255,107,53,.06) 0%, transparent 60%),
+      var(--bg);
+  }
+
+  header {
+    text-align: center;
+    padding: 52px 20px 32px;
+  }
+  header .badge {
+    display: inline-block;
+    background: rgba(240,192,64,.12);
+    border: 1px solid rgba(240,192,64,.3);
+    color: var(--accent);
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+  }
+  header h1 span { color: var(--accent); }
+  header p {
+    color: var(--muted);
+    margin-top: 10px;
+    font-size: .95rem;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+  @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card-title .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  .field label {
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .field input, .field select {
+    background: var(--surface2);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: .95rem;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .field input:focus, .field select:focus {
+    border-color: rgba(240,192,64,.5);
+    box-shadow: 0 0 0 3px rgba(240,192,64,.08);
+  }
+  .field select option { background: #1e2330; }
+
+  .range-wrap { position: relative; }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%; height: 6px;
+    background: var(--surface2);
+    border-radius: 999px; border: none;
+    padding: 0; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(240,192,64,.5);
+  }
+  .range-val {
+    position: absolute; right: 0; top: -22px;
+    font-size: .8rem; color: var(--accent); font-weight: 500;
+  }
+
+  .predict-btn {
+    margin-top: 24px;
+    width: 100%;
+    background: var(--accent);
+    color: #0d0f14;
+    border: none; border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem; font-weight: 700;
+    letter-spacing: .04em;
+    padding: 15px;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .predict-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(240,192,64,.35);
+  }
+  .predict-btn:active { transform: translateY(0); }
+
+  /* Result card */
+  .result-card {
+    grid-column: 1 / -1;
+    display: none;
+    animation: fadeUp .4s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .result-card.visible { display: block; }
+
+  .price-display {
+    text-align: center;
+    padding: 32px 0 20px;
+  }
+  .price-label {
+    font-size: .8rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .12em;
+    margin-bottom: 8px;
+  }
+  .price-value {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.4rem, 6vw, 3.8rem);
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -.02em;
+  }
+  .price-sub { color: var(--muted); font-size: .85rem; margin-top: 6px; }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 24px;
+  }
+  .stat {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-n { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 700; }
+  .stat-l { font-size: .72rem; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .08em; }
+
+  canvas { max-height: 220px; }
+
+  .error-msg {
+    background: rgba(255,107,53,.12);
+    border: 1px solid rgba(255,107,53,.3);
+    color: #ff6b35;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: .88rem;
+    margin-top: 16px;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">🤖 Random Forest · Scikit-learn</div>
+  <h1>House Price <span>Predictor</span></h1>
+  <p>Fill in the details below — the ML model will predict the market value instantly.</p>
+</header>
+
+<div class="container">
+
+  <!-- INPUT FORM -->
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Property Details</div>
+    <div class="form-grid">
+
+      <div class="field" style="grid-column:1/-1">
+        <label>Size (sq ft)</label>
+        <div class="range-wrap">
+          <span class="range-val" id="size-val">2500</span>
+          <input type="range" id="size" min="500" max="5000" value="2500" step="50"
+                 oninput="document.getElementById('size-val').textContent=this.value">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Bedrooms</label>
+        <select id="bedrooms">
+          <option>1</option><option>2</option><option selected>3</option>
+          <option>4</option><option>5</option><option>6</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Bathrooms</label>
+        <select id="bathrooms">
+          <option>1</option><option selected>2</option>
+          <option>3</option><option>4</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Age of House (yrs)</label>
+        <div class="range-wrap">
+          <span class="range-val" id="age-val">10</span>
+          <input type="range" id="age" min="0" max="50" value="10"
+                 oninput="document.getElementById('age-val').textContent=this.value">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Garage Capacity</label>
+        <select id="garage">
+          <option>0</option><option selected>1</option>
+          <option>2</option><option>3</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Location Score (1–4)</label>
+        <select id="location">
+          <option value="1">1 – Rural</option>
+          <option value="2" selected>2 – Suburban</option>
+          <option value="3">3 – Urban</option>
+          <option value="4">4 – Prime</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Floors</label>
+        <select id="floors">
+          <option selected>1</option><option>2</option><option>3</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Swimming Pool</label>
+        <select id="pool">
+          <option value="0">No</option>
+          <option value="1">Yes</option>
+        </select>
+      </div>
+
+    </div>
+    <button class="predict-btn" onclick="predict()">⚡ Predict Price</button>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <!-- FEATURE IMPORTANCE CHART -->
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Feature Importance</div>
+    <canvas id="importanceChart"></canvas>
+    <p style="color:var(--muted);font-size:.8rem;margin-top:14px;text-align:center">
+      Which features matter most to the model
+    </p>
+  </div>
+
+  <!-- RESULT -->
+  <div class="card result-card" id="result-card">
+    <div class="price-display">
+      <div class="price-label">Predicted Market Value</div>
+      <div class="price-value" id="price-value">$0</div>
+      <div class="price-sub">Based on Random Forest (200 trees)</div>
+    </div>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-n" id="stat-size">—</div>
+        <div class="stat-l">Size (sqft)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n" id="stat-bed">—</div>
+        <div class="stat-l">Bedrooms</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n" id="stat-loc">—</div>
+        <div class="stat-l">Location</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let barChart = null;
+
+function fmt(n) {
+  return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
+}
+
+function renderChart(names, vals) {
+  const ctx = document.getElementById('importanceChart').getContext('2d');
+  if (barChart) barChart.destroy();
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: names,
+      datasets: [{
+        data: vals.map(v => +(v*100).toFixed(1)),
+        backgroundColor: vals.map((_,i) =>
+          i===vals.indexOf(Math.max(...vals))
+            ? 'rgba(240,192,64,.85)'
+            : 'rgba(240,192,64,.28)'
+        ),
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color:'#6b7280', font:{size:11} },
+          grid:  { color:'rgba(255,255,255,.05)' },
+          title: { display:true, text:'Importance (%)', color:'#6b7280', font:{size:11} }
+        },
+        y: { ticks: { color:'#e8eaf0', font:{size:12} }, grid: { display:false } }
+      }
+    }
+  });
+}
+
+async function predict() {
+  const btn   = document.querySelector('.predict-btn');
+  const errEl = document.getElementById('error-msg');
+  errEl.classList.remove('visible');
+  btn.textContent = '⏳ Predicting …';
+  btn.disabled = true;
+
+  const body = {
+    size:      document.getElementById('size').value,
+    bedrooms:  document.getElementById('bedrooms').value,
+    bathrooms: document.getElementById('bathrooms').value,
+    age:       document.getElementById('age').value,
+    garage:    document.getElementById('garage').value,
+    location:  document.getElementById('location').value,
+    floors:    document.getElementById('floors').value,
+    pool:      document.getElementById('pool').value,
+  };
+
+  try {
+    const res  = await fetch('/predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      errEl.textContent = '⚠️ ' + data.error;
+      errEl.classList.add('visible');
+    } else {
+      document.getElementById('price-value').textContent = fmt(data.price);
+      document.getElementById('stat-size').textContent   = (+body.size).toLocaleString();
+      document.getElementById('stat-bed').textContent    = body.bedrooms;
+      const locMap = {1:'Rural',2:'Suburban',3:'Urban',4:'Prime'};
+      document.getElementById('stat-loc').textContent    = locMap[body.location];
+
+      document.getElementById('result-card').classList.add('visible');
+      renderChart(data.feature_names, data.importances);
+    }
+  } catch(e) {
+    errEl.textContent = '⚠️ Server not reachable. Make sure app.py is running!';
+    errEl.classList.add('visible');
+  }
+
+  btn.textContent = '⚡ Predict Price';
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
